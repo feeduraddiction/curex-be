@@ -2,63 +2,55 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const app = express();
+require('dotenv').config();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 const port = 3002;
 const fetch = require('node-fetch');
-const url = "https://api.exchangerate.host/latest?base=USD&places=4&";
-const settings = { method: "Get" };
 
 
-fetch(url, settings)
-  .then(res => res.json())
+fetch(
+  process.env.URL_CURRENCIES,
+  {
+    method: "Get"
+  },
+).then(res => res.json())
   .then((currencies) => {
-    let initialCurrencies = Object.fromEntries(
+    const initialCurrencies = Object.fromEntries(
       Object.entries(currencies.rates)
-        .filter(([key, value]) =>
+        .filter(([key]) =>
           (key === 'USD') ||
           (key === 'EUR') ||
           (key === 'BYN') ||
           (key === 'RUB')
-        ))
+        ).reverse())
 
     let usdKoef = currencies.rates.USD;
-    let changedCurrencies = initialCurrencies;
-    let currensciesToDisplay = initialCurrencies;
 
     app.post('/filtered', (req, res) => {
+      const CODE_OF_ADD = 1;
+      const CODE_OF_CHANGE = 2;
 
       const chosenCurrency = req.body.currencyToChange;
 
-      if (req.body.codeOfMethod === 1) {
-        currensciesToDisplay = Object.assign(    // assign for concating old object + a new one
-          changedCurrencies, 
-          Object.fromEntries(  
-          Object.entries(currencies.rates)
-            .filter(([key, value]) => key === chosenCurrency)
-            .map(([key, value]) => [key, (value * usdKoef)])   // multiply added currency
-        ))
+      if (req.body.codeOfMethod === CODE_OF_ADD) {
 
-        // currensciesToDisplay.USD = usdKoef;
-        initialCurrencies = currensciesToDisplay;
+        initialCurrencies[chosenCurrency] = currencies.rates[chosenCurrency] * usdKoef;
         res.json(initialCurrencies);
 
-      } else if (req.body.codeOfMethod === 2) {
+      } else if (req.body.codeOfMethod === CODE_OF_CHANGE) {
+        const inputValue =
+          req.body.valueAfterChange === 0 &&
+            req.body.valueAfterChange === '' ? 1 :
+            req.body.valueAfterChange;
+ 
+        usdKoef = inputValue / currencies.rates[chosenCurrency];
 
-        const inputValue = req.body.valueAfterChange === 0 &&
-          req.body.valueAfterChange === '' ? 1 : req.body.valueAfterChange;
+        Object.entries(initialCurrencies)
+          .map(([key]) => initialCurrencies[key] = currencies.rates[key] * usdKoef);
 
-
-        usdKoef = inputValue / currencies.rates[chosenCurrency];          //get the koef for calculating all the currencies
-
-        changedCurrencies = Object.fromEntries(
-          Object.entries(currensciesToDisplay)
-            .map(([key, value]) => [key, currencies.rates[key] * usdKoef])
-        )
-
-        changedCurrencies[chosenCurrency] = inputValue;
-        initialCurrencies = changedCurrencies;
+        initialCurrencies[chosenCurrency] = Number(inputValue);
         res.json(initialCurrencies);
       }
     });
@@ -73,5 +65,6 @@ fetch(url, settings)
   })
 
 app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`)
+  console.log(`listening at http://localhost:${port}`)
 })
+
