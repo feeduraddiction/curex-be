@@ -1,6 +1,6 @@
 backend server for processing data from  https://github.com/feeduraddiction/curex
 
-For launch:
-1.Clone
-2.npm install
+For launch:<br>
+1.Clone<br>
+2.npm install<br>
 3.npm start
